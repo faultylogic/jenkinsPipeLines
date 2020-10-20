@@ -12,7 +12,7 @@ pipeline {
     stages {
         stage("Build POM Data") {
             steps("Build POM Data") {
-                bat "mvn -N help:effective-pom -Doutput=target/pom-effective.xml"
+                sh "mvn -N help:effective-pom -Doutput=target/pom-effective.xml"
 
                 script {
                     pom = readMavenPom(file: 'target/pom-effective.xml')
@@ -26,14 +26,14 @@ pipeline {
         stage("Build") {
             steps {
                 echo "Building the application using Maven (pom.xml)"
-                bat "mvn clean package -P ${changelist} -Dskip.unit.tests=true"
+                sh "mvn clean package -P ${changelist} -Dskip.unit.tests=true"
             }
         }
 
         stage("Unit & Integration Tests") {
             steps {
                 echo "Unit & Integration Tests"
-                bat "mvn test -Dskip.unit.tests=false"
+                sh "mvn test -Dskip.unit.tests=false"
             }
         }
 
@@ -42,7 +42,7 @@ pipeline {
                 echo "Running SonarQube Analysis"
 
                 withSonarQubeEnv('CEDP_SQ') {
-                     bat "mvn sonar:sonar"  
+                     sh "mvn sonar:sonar"  
                 }
             }
        }
@@ -116,7 +116,7 @@ pipeline {
 
                 echo "Publishing release binary repository manager (Artifactory)"
 
-                bat "mvn deploy"
+                sh "mvn deploy"
 
                 script {
 
