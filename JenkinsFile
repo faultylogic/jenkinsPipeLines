@@ -19,7 +19,7 @@ pipeline {
                 sh 'mvn -N help:effective-pom -Doutput=target/pom-effective.xml'
 
                 script {
-                    pom = readMavenPom(file: 'target/pom-effective.xml')
+                    pom = readMavenPom file: 'target/pom-effective.xml'
                     projectArtifactId = pom.getArtifactId()
                     projectVersion = pom.getVersion()
                     currentBuild.displayName = projectArtifactId + ' - ' + projectVersion + "(${currentBuild.number})"
