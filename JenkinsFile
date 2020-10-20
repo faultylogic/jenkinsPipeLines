@@ -1,0 +1,158 @@
+publish = false
+
+pipeline {  
+    agent any
+
+    environment {
+        changelist = defineReleaseType()
+        emailRecipients = 'benjamin.goulet@cra-arc.gc.ca'
+        deploymentKey = "<Deployment Key Given to you from the AMT>"
+    }
+
+    stages {
+        stage("Build POM Data") {
+            steps("Build POM Data") {
+                bat "mvn -N help:effective-pom -Doutput=target/pom-effective.xml"
+
+                script {
+                    pom = readMavenPom(file: 'target/pom-effective.xml')
+                    projectArtifactId = pom.getArtifactId()
+                    projectVersion = pom.getVersion()
+                    currentBuild.displayName = projectArtifactId + " - " + projectVersion + "(${currentBuild.number})"
+                }
+            }
+        }
+
+        stage("Build") {
+            steps {
+                echo "Building the application using Maven (pom.xml)"
+                bat "mvn clean package -P ${changelist} -Dskip.unit.tests=true"
+            }
+        }
+
+        stage("Unit & Integration Tests") {
+            steps {
+                echo "Unit & Integration Tests"
+                bat "mvn test -Dskip.unit.tests=false"
+            }
+        }
+
+        stage("Quality Analysis") {
+            steps {
+                echo "Running SonarQube Analysis"
+
+                withSonarQubeEnv('CEDP_SQ') {
+                     bat "mvn sonar:sonar"  
+                }
+            }
+       }
+
+        stage("Quality Gate") {
+            steps {
+                timeout(time: 1, unit: 'HOURS') {
+                    script {
+                        def qg = waitForQualityGate()
+                        if (qg.status != 'OK') {
+                            error "Pipeline aborted due to quality gate failure: ${qg.status}"
+                        }
+                    }
+                }
+            }
+        }
+
+        
+
+        stage("Publish binary Authorization") {
+            when {
+                beforeInput true
+                expression { BRANCH_NAME ==~ /(dev|master)/ }
+            }
+
+            steps {
+                script {
+                    def proceed = true
+
+                    try {
+                        timeout(time: 15, unit: 'SECONDS') {
+                            input(message: 'Deploy this build to Artifactory?')
+                        }
+
+                    } catch (err) {
+                        proceed = false
+                        echo "****** build was not pushed to artifactory *******"
+                    }
+
+                    if(proceed) {
+                        updateShouldPublish(true)
+                    }
+
+                }
+
+            }
+
+        }
+
+ 
+
+        stage("Publish binary") {
+
+            when {
+
+                beforeInput true
+
+                expression {
+
+                    script{
+
+                        shouldPublish()
+
+                    }
+
+                }
+
+            }
+
+            steps {
+
+                echo "Publishing release binary repository manager (Artifactory)"
+
+                bat "mvn deploy"
+
+                script {
+
+                    migration.amtDeployment(deploymentKey)
+
+                }
+
+            }
+
+        }
+
+    }
+
+    post {
+        always {
+            deleteDir()
+        }
+    }
+}
+
+def shouldPublish(){
+    return publish
+}
+
+ 
+
+def updateShouldPublish(flag) {
+    publish = flag
+}
+
+ 
+
+def defineReleaseType() {
+    if (env.BRANCH_NAME == 'master') {
+        return "RELEASE"
+    } else {
+        return "DEV"
+    }
+}
