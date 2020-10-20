@@ -1,53 +1,57 @@
 publish = false
 
-pipeline {  
+pipeline {
     agent any
+
+    tools {
+        maven 'M3'
+    }
 
     environment {
         changelist = defineReleaseType()
         emailRecipients = 'benjamin.goulet@cra-arc.gc.ca'
-        deploymentKey = "<Deployment Key Given to you from the AMT>"
+        deploymentKey = '<Deployment Key Given to you from the AMT>'
     }
 
     stages {
-        stage("Build POM Data") {
-            steps("Build POM Data") {
-                sh "mvn -N help:effective-pom -Doutput=target/pom-effective.xml"
+        stage('Build POM Data') {
+            steps('Build POM Data') {
+                sh 'mvn -N help:effective-pom -Doutput=target/pom-effective.xml'
 
                 script {
                     pom = readMavenPom(file: 'target/pom-effective.xml')
                     projectArtifactId = pom.getArtifactId()
                     projectVersion = pom.getVersion()
-                    currentBuild.displayName = projectArtifactId + " - " + projectVersion + "(${currentBuild.number})"
+                    currentBuild.displayName = projectArtifactId + ' - ' + projectVersion + "(${currentBuild.number})"
                 }
             }
         }
 
-        stage("Build") {
+        stage('Build') {
             steps {
-                echo "Building the application using Maven (pom.xml)"
+                echo 'Building the application using Maven (pom.xml)'
                 sh "mvn clean package -P ${changelist} -Dskip.unit.tests=true"
             }
         }
 
-        stage("Unit & Integration Tests") {
+        stage('Unit & Integration Tests') {
             steps {
-                echo "Unit & Integration Tests"
-                sh "mvn test -Dskip.unit.tests=false"
+                echo 'Unit & Integration Tests'
+                sh 'mvn test -Dskip.unit.tests=false'
             }
         }
 
-        stage("Quality Analysis") {
+        stage('Quality Analysis') {
             steps {
-                echo "Running SonarQube Analysis"
+                echo 'Running SonarQube Analysis'
 
                 withSonarQubeEnv('CEDP_SQ') {
-                     sh "mvn sonar:sonar"  
+                    sh 'mvn sonar:sonar'
                 }
             }
-       }
+        }
 
-        stage("Quality Gate") {
+        stage('Quality Gate') {
             steps {
                 timeout(time: 1, unit: 'HOURS') {
                     script {
@@ -60,9 +64,7 @@ pipeline {
             }
         }
 
-        
-
-        stage("Publish binary Authorization") {
+        stage('Publish binary Authorization') {
             when {
                 beforeInput true
                 expression { BRANCH_NAME ==~ /(dev|master)/ }
@@ -76,58 +78,39 @@ pipeline {
                         timeout(time: 15, unit: 'SECONDS') {
                             input(message: 'Deploy this build to Artifactory?')
                         }
-
                     } catch (err) {
                         proceed = false
-                        echo "****** build was not pushed to artifactory *******"
+                        echo '****** build was not pushed to artifactory *******'
                     }
 
-                    if(proceed) {
+                    if (proceed) {
                         updateShouldPublish(true)
                     }
-
                 }
-
             }
-
         }
 
- 
-
-        stage("Publish binary") {
-
+        stage('Publish binary') {
             when {
-
                 beforeInput true
 
                 expression {
-
-                    script{
-
+                    script {
                         shouldPublish()
-
                     }
-
                 }
-
             }
 
             steps {
+                echo 'Publishing release binary repository manager (Artifactory)'
 
-                echo "Publishing release binary repository manager (Artifactory)"
-
-                sh "mvn deploy"
+                sh 'mvn deploy'
 
                 script {
-
                     migration.amtDeployment(deploymentKey)
-
                 }
-
             }
-
         }
-
     }
 
     post {
@@ -137,22 +120,18 @@ pipeline {
     }
 }
 
-def shouldPublish(){
+def shouldPublish() {
     return publish
 }
-
- 
 
 def updateShouldPublish(flag) {
     publish = flag
 }
 
- 
-
 def defineReleaseType() {
     if (env.BRANCH_NAME == 'master') {
-        return "RELEASE"
+        return 'RELEASE'
     } else {
-        return "DEV"
+        return 'DEV'
     }
 }
