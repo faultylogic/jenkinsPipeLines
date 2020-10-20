@@ -54,50 +54,14 @@ pipeline {
         }
 
         stage('Publish binary Authorization') {
-            when {
-                beforeInput true
-                expression { BRANCH_NAME ==~ /(dev|master)/ }
-            }
-
             steps {
-                script {
-                    def proceed = true
-
-                    try {
-                        timeout(time: 15, unit: 'SECONDS') {
-                            input(message: 'Deploy this build to Artifactory?')
-                        }
-                    } catch (err) {
-                        proceed = false
-                        echo '****** build was not pushed to artifactory *******'
-                    }
-
-                    if (proceed) {
-                        updateShouldPublish(true)
-                    }
-                }
+                sleep(time:3, unit:'SECONDS')
             }
         }
 
         stage('Publish binary') {
-            when {
-                beforeInput true
-
-                expression {
-                    script {
-                        shouldPublish()
-                    }
-                }
-            }
-
             steps {
                 echo 'Publishing release binary repository manager (Artifactory)'
-
-                sh 'mvn deploy'
-
-                script {
-                    migration.amtDeployment(deploymentKey)
-                }
             }
         }
     }

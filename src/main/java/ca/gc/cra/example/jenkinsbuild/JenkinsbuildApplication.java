@@ -8,7 +8,6 @@ public class JenkinsbuildApplication {
 
 	public static void main(String[] args) {
 		SpringApplication.run(JenkinsbuildApplication.class, args);
-		sysout;
 	}
 
 }
