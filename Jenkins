@@ -81,21 +81,8 @@ pipeline {
         }
 
         stage('Publish binary') {
-            when {
-                beforeInput true
-
-                expression {
-                    script {
-                    }
-                }
-            }
-
             steps {
                 echo 'Publishing release binary repository manager (Artifactory)'
-
-
-                script {
-                }
             }
         }
     }
