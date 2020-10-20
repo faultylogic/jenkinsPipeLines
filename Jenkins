@@ -15,9 +15,6 @@ pipeline {
         stage('Build POM Data') {
             steps('Build POM Data') {
 
-                script {
- 
-                }
             }
         }
 
@@ -45,9 +42,6 @@ pipeline {
         stage('Quality Gate') {
             steps {
                 timeout(time: 1, unit: 'MINUTES') {
-                    script {
-
-                    }
                 }
             }
         }
